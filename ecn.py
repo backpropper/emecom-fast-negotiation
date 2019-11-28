@@ -327,6 +327,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                         _term_matches_argmax_count, _num_policy_runs, _utt_matches_argmax_count, _utt_stochastic_draws, \
                         _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(
                                                                                         batch=test_batch,
+                                                                                        device=device,
                                                                                         enable_comms=enable_comms,
                                                                                         enable_proposal=enable_proposal,
                                                                                         agent_models=agent_models,
