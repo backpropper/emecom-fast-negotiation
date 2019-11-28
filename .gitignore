@@ -1,0 +1,5 @@
+logs/
+model_saves/
+__pycache__/
+.idea/
+.DS_Store
