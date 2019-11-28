@@ -29,9 +29,9 @@ def render_action(t, s, prop, term):
     else:
         print(' ' + ''.join([str(v) for v in s.m_prev[0].view(-1).tolist()]), end='')
         print(' %s:%s/%s %s:%s/%s %s:%s/%s' % (
-            float(utility[0][0]), float(prop[0][0]), float(s.pool[0][0]),
-            float(utility[0][1]), float(prop[0][1]), float(s.pool[0][1]),
-            float(utility[0][2]), float(prop[0][2]), float(s.pool[0][2]),
+            int(utility[0][0]), int(prop[0][0]), int(s.pool[0][0]),
+            int(utility[0][1]), int(prop[0][1]), int(s.pool[0][1]),
+            int(utility[0][2]), int(prop[0][2]), int(s.pool[0][2]),
         ), end='')
         print('')
         if t + 1 == s.N[0]:
