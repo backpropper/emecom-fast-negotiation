@@ -326,13 +326,14 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                 actions, test_rewards, steps, alive_masks, entropy_loss_by_agent, \
                         _term_matches_argmax_count, _num_policy_runs, _utt_matches_argmax_count, _utt_stochastic_draws, \
                         _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(
-                    batch=test_batch,
-                    enable_comms=enable_comms,
-                    enable_proposal=enable_proposal,
-                    agent_models=agent_models,
-                    prosocial=prosocial,
-                    render=True,
-                    testing=True)
+                                                                                        batch=test_batch,
+                                                                                        enable_comms=enable_comms,
+                                                                                        enable_proposal=enable_proposal,
+                                                                                        agent_models=agent_models,
+                                                                                        prosocial=prosocial,
+                                                                                        render=True,
+                                                                                        testing=True
+                                                                                        )
                 test_rewards_sum += test_rewards[:, 2].mean()
             print('test reward=%.3f' % (test_rewards_sum / len(test_batches)))
 
