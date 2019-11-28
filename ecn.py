@@ -20,7 +20,8 @@ import alive_sieve
 def render_action(t, s, prop, term):
     agent = t % 2
     speaker = 'A' if agent == 0 else 'B'
-    utility = s.utilities[:, agent]
+    utility = float(s.utilities[:, agent])
+    prop = float(prop)
     print('  ', end='')
     if speaker == 'B':
         print('                                   ', end='')
@@ -29,9 +30,9 @@ def render_action(t, s, prop, term):
     else:
         print(' ' + ''.join([str(v) for v in s.m_prev[0].view(-1).tolist()]), end='')
         print(' %s:%s/%s %s:%s/%s %s:%s/%s' % (
-            utility[0][0], prop[0][0], s.pool[0][0],
-            utility[0][1], prop[0][1], s.pool[0][1],
-            utility[0][2], prop[0][2], s.pool[0][2],
+            utility[0][0], prop[0][0], float(s.pool[0][0]),
+            utility[0][1], prop[0][1], float(s.pool[0][1]),
+            utility[0][2], prop[0][2], float(s.pool[0][2]),
         ), end='')
         print('')
         if t + 1 == s.N[0]:
@@ -336,6 +337,10 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                                                                                         testing=True
                                                                                         )
                 test_rewards_sum += test_rewards[:, 2].mean()
+
+            test_rewards_sum = float(test_rewards_sum)
+            rewards_sum = float(rewards_sum)
+            baseline = float(baseline)
             print('test reward=%.3f' % (test_rewards_sum / len(test_batches)))
 
             time_since_last = time.time() - last_print
@@ -369,7 +374,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
             f_log.flush()
             last_print = time.time()
             steps_sum = 0
-            rewards_sum.fill_(0)
+            rewards_sum = torch.zeros(3, dtype=torch.float, device=device)
             term_matches_argmax_count = 0
             num_policy_runs = 0
             utt_matches_argmax_count = 0
@@ -377,6 +382,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
             prop_matches_argmax_count = 0
             prop_stochastic_draws = 0
             count_sum = 0
+
         if not testing and time.time() - last_save >= 30.0:
             save_model(
                 model_file=model_file,
