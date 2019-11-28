@@ -20,8 +20,7 @@ import alive_sieve
 def render_action(t, s, prop, term):
     agent = t % 2
     speaker = 'A' if agent == 0 else 'B'
-    utility = float(s.utilities[:, agent])
-    prop = float(prop)
+    utility = s.utilities[:, agent]
     print('  ', end='')
     if speaker == 'B':
         print('                                   ', end='')
@@ -30,9 +29,9 @@ def render_action(t, s, prop, term):
     else:
         print(' ' + ''.join([str(v) for v in s.m_prev[0].view(-1).tolist()]), end='')
         print(' %s:%s/%s %s:%s/%s %s:%s/%s' % (
-            utility[0][0], prop[0][0], float(s.pool[0][0]),
-            utility[0][1], prop[0][1], float(s.pool[0][1]),
-            utility[0][2], prop[0][2], float(s.pool[0][2]),
+            float(utility[0][0]), float(prop[0][0]), float(s.pool[0][0]),
+            float(utility[0][1]), float(prop[0][1]), float(s.pool[0][1]),
+            float(utility[0][2]), float(prop[0][2]), float(s.pool[0][2]),
         ), end='')
         print('')
         if t + 1 == s.N[0]:
@@ -280,12 +279,12 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                                                                                 # batch_size=batch_size,
                                                                                 render=render,
                                                                                 testing=testing)
-        term_matches_argmax_count += _term_matches_argmax_count
-        utt_matches_argmax_count += _utt_matches_argmax_count
-        utt_stochastic_draws += _utt_stochastic_draws
-        num_policy_runs += _num_policy_runs
-        prop_matches_argmax_count += _prop_matches_argmax_count
-        prop_stochastic_draws += _prop_stochastic_draws
+        term_matches_argmax_count += float(_term_matches_argmax_count)
+        utt_matches_argmax_count += float(_utt_matches_argmax_count)
+        utt_stochastic_draws += float(_utt_stochastic_draws)
+        num_policy_runs += float(_num_policy_runs)
+        prop_matches_argmax_count += float(_prop_matches_argmax_count)
+        prop_stochastic_draws += float(_prop_stochastic_draws)
 
         if not testing:
             for i in range(2):
@@ -314,7 +313,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                 agent_opts[i].step()
 
         rewards_sum += rewards.sum(0)
-        steps_sum += steps.sum()
+        steps_sum += float(steps.sum())
         baseline = 0.7 * baseline + 0.3 * rewards.mean(0)
         count_sum += batch_size
 
@@ -339,8 +338,8 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                 test_rewards_sum += test_rewards[:, 2].mean()
 
             test_rewards_sum = float(test_rewards_sum)
-            rewards_sum = float(rewards_sum)
-            baseline = float(baseline)
+            rewards_sum_pr = rewards_sum.cpu().float().numpy()
+            baseline_pr = baseline.cpu().float().numpy()
             print('test reward=%.3f' % (test_rewards_sum / len(test_batches)))
 
             time_since_last = time.time() - last_print
@@ -348,8 +347,8 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                 baseline_str = '%.2f' % baseline[2]
                 # rewards_str = '%.2f' % (rewards_sum[2] / count_sum)
             else:
-                baseline_str = '%.2f,%.2f' % (baseline[0], baseline[1])
-            rewards_str = '%.2f,%.2f,%.2f' % (rewards_sum[0] / count_sum, rewards_sum[1] / count_sum, rewards_sum[2] / count_sum)
+                baseline_str = '%.2f,%.2f' % (baseline_pr[0], baseline_pr[1])
+            rewards_str = '%.2f,%.2f,%.2f' % (rewards_sum_pr[0] / count_sum, rewards_sum_pr[1] / count_sum, rewards_sum_pr[2] / count_sum)
             print('e=%s train=%s b=%s games/sec %s avg steps %.4f argmaxp term=%.4f utt=%.4f prop=%.4f' % (
                 episode,
                 rewards_str,
@@ -362,7 +361,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
             ))
             f_log.write(json.dumps({
                 'episode': episode,
-                'avg_reward_0': rewards_sum[2] / count_sum,
+                'avg_reward_0': rewards_sum_pr[2] / count_sum,
                 'test_reward': test_rewards_sum / len(test_batches),
                 'avg_steps': steps_sum / count_sum,
                 'games_sec': count_sum / time_since_last,
