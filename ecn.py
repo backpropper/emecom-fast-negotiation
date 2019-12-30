@@ -82,7 +82,7 @@ class State(object):
         self.m_prev = self.m_prev[still_alive_idxes]
 
 
-def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_models, testing, render=False):
+def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_models, testing, corrupt_utt, render=False):
     batch_size = batch['N'].size()[0]
     s = State(**batch, device=device)
 
@@ -121,7 +121,8 @@ def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_m
                                                                                 utility=s.utilities[:, agent],
                                                                                 m_prev=s.m_prev,
                                                                                 prev_proposal=_prev_proposal,
-                                                                                testing=testing
+                                                                                testing=testing,
+                                                                                corrupt_utt=corrupt_utt
                                                                                 )
         entropy_loss_by_agent[agent] += _entropy_loss
         actions_by_timestep.append(nodes)
@@ -237,6 +238,11 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
     while True:
         render = time.time() - last_print >= render_every_seconds
         batch = sampling.generate_training_batch(batch_size=batch_size, test_hashes=test_hashes, random_state=train_r)
+        p = random.uniform(0, 1)
+        if p >= 0.5:
+            corrupt_utt = True
+        else:
+            corrupt_utt = False
         actions, rewards, steps, alive_masks, entropy_loss_by_agent, \
                 _term_matches_argmax_count, _num_policy_runs, _utt_matches_argmax_count, _utt_stochastic_draws, \
                 _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(batch=batch,
@@ -246,7 +252,8 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                                                                                 agent_models=agent_models,
                                                                                 prosocial=prosocial,
                                                                                 render=render,
-                                                                                testing=testing
+                                                                                testing=testing,
+                                                                                corrupt_utt=corrupt_utt
                                                                                 )
         term_matches_argmax_count += float(_term_matches_argmax_count)
         utt_matches_argmax_count += float(_utt_matches_argmax_count)
@@ -298,7 +305,8 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                                                                                         agent_models=agent_models,
                                                                                         prosocial=prosocial,
                                                                                         render=True,
-                                                                                        testing=True
+                                                                                        testing=True,
+                                                                                        corrupt_utt=False
                                                                                         )
                 test_rewards_sum += test_rewards[:, 2].mean()
 
