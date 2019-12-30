@@ -327,7 +327,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
 
             f_log.write(json.dumps({
                 'episode': episode,
-                'avg_reward_0': rewards_sum_pr[2] / count_sum,
+                'avg_reward_pro': rewards_sum_pr[2] / count_sum,
                 'test_reward': test_rewards_sum / len(test_batches),
                 'avg_steps': steps_sum / count_sum,
                 'games_sec': count_sum / time_since_last,
