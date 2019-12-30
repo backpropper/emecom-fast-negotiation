@@ -349,7 +349,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
             prop_matches_argmax_count = 0
             prop_stochastic_draws = 0
 
-        if not testing and time.time() - last_save >= 30.0:
+        if not testing and time.time() - last_save >= render_every_seconds:
             save_model(
                 model_file=model_file,
                 agent_models=agent_models,
