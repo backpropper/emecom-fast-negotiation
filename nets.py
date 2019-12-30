@@ -61,7 +61,7 @@ class TermPolicy(nn.Module):
         matches_greedy_count = matches_greedy.int().sum()
         term_probs = term_probs + eps
         entropy = -(term_probs * term_probs.log()).sum(1).sum()
-        return log_g, a.squeeze().byte(), entropy, matches_greedy_count
+        return log_g, a.byte(), entropy, matches_greedy_count
 
 
 class UtterancePolicy(nn.Module):

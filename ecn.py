@@ -8,7 +8,7 @@ import numpy as np
 import random
 
 import torch
-from torch import optim, nn
+from torch import optim
 
 import nets
 import sampling
@@ -23,7 +23,7 @@ def render_action(t, s, prop, term):
     print('  ', end='')
     if speaker == 'B':
         print('                                   ', end='')
-    if term[0]:
+    if term.squeeze()[0]:
         print(' ACC')
     else:
         print(' ' + ''.join([str(v) for v in s.m_prev[0].view(-1).tolist()]), end='')
@@ -90,8 +90,6 @@ def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_m
     actions_by_timestep = []
     alive_masks = []
 
-    # next two tensofrs wont be sieved, they will stay same size throughout
-    # entire batch, we will update them using sieve.out_idxes[...]
     rewards = torch.zeros((batch_size, 3), device=device, dtype=torch.float)
     num_steps = torch.ones(batch_size, device=device, dtype=torch.long) * 10
 
@@ -372,7 +370,7 @@ if __name__ == '__main__':
     parser.add_argument('--model-file', type=str, default='model_saves/model.pt')
     parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--test-seed', type=int, default=123, help='used for generating test game set')
-    parser.add_argument('--seed', type=int, help='optional')
+    parser.add_argument('--seed', type=int, default=111)
     parser.add_argument('--term-entropy-reg', type=float, default=0.5)
     parser.add_argument('--utterance-entropy-reg', type=float, default=0.0001)
     parser.add_argument('--proposal-entropy-reg', type=float, default=0.01)

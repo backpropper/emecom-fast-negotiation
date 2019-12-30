@@ -18,7 +18,7 @@ def calc_rewards(t, s, term, device):
     if t == 0:
         return rewards_batch
 
-    reward_eligible_mask = term.clone().byte()
+    reward_eligible_mask = term.view(batch_size).clone().byte()
     if reward_eligible_mask.max() == 0:
         return rewards_batch
 

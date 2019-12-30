@@ -56,7 +56,6 @@ def hash_long_batch(int_batch, num_values):
 
 def hash_batch(pool, utilities, N):
     v = N
-    # use num_values=10, so human-readable
     v = v * 1000 + hash_long_batch(pool, num_values=10)
     v = v * 1000 + hash_long_batch(utilities[0], num_values=10)
     v = v * 1000 + hash_long_batch(utilities[1], num_values=10)
