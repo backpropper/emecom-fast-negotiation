@@ -389,10 +389,7 @@ if __name__ == '__main__':
     args.prosocial = not args.disable_prosocial
     args.logfile = args.logfile.format(**args.__dict__)
     args.logfile = datetime.datetime.strftime(datetime.datetime.now(), args.logfile)
-    if torch.cuda.is_available():
-        args.device = torch.device('cuda')
-    else:
-        args.device = torch.device('cpu')
+    args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     del args.__dict__['disable_comms']
     del args.__dict__['disable_proposal']

@@ -30,7 +30,7 @@ def calc_rewards(t, s, term, device):
 
     proposer = 1 - agent
     accepter = agent
-    proposal = torch.zeros(batch_size, 2, 3, dtype=torch.long, device=device)
+    proposal = torch.zeros(batch_size, 2, 3, dtype=torch.float, device=device)
     proposal[:, proposer] = s.last_proposal
     proposal[:, accepter] = s.pool - s.last_proposal
     max_utility, _ = s.utilities.max(1)
@@ -41,7 +41,7 @@ def calc_rewards(t, s, term, device):
         for i in range(2):
             raw_rewards[i] = s.utilities[b, i].dot(proposal[b, i])
 
-        scaled_rewards = torch.zeros(3, device=device, dtype=torch.float)
+        scaled_rewards = torch.zeros(3, dtype=torch.float, device=device)
 
         actual_prosocial = raw_rewards.sum()
         available_prosocial = max_utility[b].dot(s.pool[b])
