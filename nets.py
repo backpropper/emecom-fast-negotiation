@@ -5,16 +5,11 @@ import torch.nn.functional as F
 
 class NumberSequenceEncoder(nn.Module):
     def __init__(self, num_values, device, embedding_size=100):
-        """
-        eg for values 0,1,2,3,4,5, num_values will be: 6
-        for 0,1,..,9 num_values will be: 10
-        """
         super().__init__()
         self.embedding_size = embedding_size
         self.num_values = num_values
         self.embedding = nn.Embedding(num_values, embedding_size)
         self.lstm = nn.LSTMCell(input_size=embedding_size, hidden_size=embedding_size)
-        self.zero_state = None
         self.device = device
 
     def forward(self, x):
@@ -22,12 +17,12 @@ class NumberSequenceEncoder(nn.Module):
         seq_len = x.size()[1]
         x = x.transpose(0, 1)
         x = self.embedding(x)
-        state = (torch.zeros(batch_size, self.embedding_size, dtype=torch.float, device=self.device),
-                 torch.zeros(batch_size, self.embedding_size, dtype=torch.float, device=self.device)
-                )
+        h = torch.zeros(batch_size, self.embedding_size, dtype=torch.float, device=self.device)
+        c = torch.zeros(batch_size, self.embedding_size, dtype=torch.float, device=self.device)
+
         for s in range(seq_len):
-            state = self.lstm(x[s], state)
-        return state[0]
+            h, c = self.lstm(x[s], (h, c))
+        return h
 
 
 class CombinedNet(nn.Module):
@@ -49,8 +44,7 @@ class TermPolicy(nn.Module):
 
     def forward(self, thoughtvector, testing, eps=1e-8):
         logits = self.h1(thoughtvector)
-        term_probs = F.sigmoid(logits)
-        matches_argmax_count = 0
+        term_probs = torch.sigmoid(logits)
 
         res_greedy = (term_probs.detach() >= 0.5).view(-1, 1).float()
 
@@ -66,8 +60,8 @@ class TermPolicy(nn.Module):
         matches_greedy = res_greedy == a
         matches_greedy_count = matches_greedy.int().sum()
         term_probs = term_probs + eps
-        entropy = - (term_probs * term_probs.log()).sum(1).sum()
-        return term_probs, log_g, a.byte(), entropy, matches_greedy_count
+        entropy = -(term_probs * term_probs.log()).sum(1).sum()
+        return log_g, a.squeeze().byte(), entropy, matches_greedy_count
 
 
 class UtterancePolicy(nn.Module):
@@ -121,6 +115,7 @@ class UtterancePolicy(nn.Module):
             utterance[:, i] = last_token
             probs = probs + eps
             entropy -= (probs * probs.log()).sum(1).sum()
+
         return utterance_nodes, utterance, entropy, matches_argmax_count, stochastic_draws_count
 
 
@@ -139,10 +134,10 @@ class ProposalPolicy(nn.Module):
 
     def forward(self, x, testing, eps=1e-8):
         batch_size = x.size()[0]
-        nodes = []
+        proposal_nodes = []
         entropy = 0
         matches_argmax_count = 0
-        stochastic_draws = 0
+        stochastic_draws_count = 0
         proposal = torch.zeros(batch_size, self.num_items, dtype=torch.long, device=self.device)
         for i in range(self.num_items):
             logits = self.fcs[i](x)
@@ -162,25 +157,21 @@ class ProposalPolicy(nn.Module):
 
             matches_argmax = res_greedy == a
             matches_argmax_count += matches_argmax.int().sum()
-            stochastic_draws += batch_size
+            stochastic_draws_count += batch_size
 
             if log_g is not None:
-                nodes.append(log_g)
+                proposal_nodes.append(log_g)
             probs = probs + eps
-            entropy += (- probs * probs.log()).sum(1).sum()
-            a = a.view(batch_size)
-            proposal[:, i] = a
+            last_token = a.view(batch_size)
+            proposal[:, i] = last_token
+            entropy -= (probs * probs.log()).sum(1).sum()
 
-        return nodes, proposal, entropy, matches_argmax_count, stochastic_draws
+        return proposal_nodes, proposal, entropy, matches_argmax_count, stochastic_draws_count
 
 
 class AgentModel(nn.Module):
-    def __init__(
-            self, enable_comms, enable_proposal, device,
-            term_entropy_reg,
-            utterance_entropy_reg,
-            proposal_entropy_reg,
-            embedding_size=100):
+    def __init__(self, enable_comms, enable_proposal, device, term_entropy_reg, utterance_entropy_reg,
+            proposal_entropy_reg, embedding_size=100):
         super().__init__()
         self.term_entropy_reg = term_entropy_reg
         self.utterance_entropy_reg = utterance_entropy_reg
@@ -201,10 +192,6 @@ class AgentModel(nn.Module):
         self.proposal_policy = ProposalPolicy(device)
 
     def forward(self, pool, utility, m_prev, prev_proposal, testing):
-        """
-        setting testing to True disables stochasticity: always picks the argmax
-        cannot use this when training
-        """
         batch_size = pool.size()[0]
         context = torch.cat([pool, utility], 1)
         c_h = self.context_net(context)
@@ -220,7 +207,7 @@ class AgentModel(nn.Module):
         entropy_loss = 0
         nodes = []
 
-        term_probs, term_node, term_a, entropy, term_matches_argmax_count = self.term_policy(h_t, testing=testing)
+        term_node, term_a, entropy, term_matches_argmax_count = self.term_policy(h_t, testing=testing)
         nodes.append(term_node)
         entropy_loss -= entropy * self.term_entropy_reg
 
@@ -232,7 +219,7 @@ class AgentModel(nn.Module):
         else:
             utt_matches_argmax_count = 0
             utt_stochastic_draws = 0
-            utterance = torch.zeros(batch_size, 6, device=self.device, dtype=torch.long)  # hard-coding 6 here is a bit hacky...
+            utterance = torch.zeros(batch_size, 6, device=self.device, dtype=torch.long)
 
         proposal_nodes, proposal, proposal_entropy, prop_matches_argmax_count, \
                                                 prop_stochastic_draws = self.proposal_policy(h_t, testing=testing)

@@ -14,27 +14,23 @@ def calc_rewards(t, s, term, device):
 
     agent = t % 2
     batch_size = term.size()[0]
-    utility = s.utilities[:, agent]
     rewards_batch = torch.zeros(batch_size, 3, dtype=torch.float, device=device)  # each row is: {one, two, combined}
     if t == 0:
-        # on first timestep theres no actual proposal yet, so score zero if terminate
         return rewards_batch
 
-    reward_eligible_mask = term.view(batch_size).clone().byte()
+    reward_eligible_mask = term.clone().byte()
     if reward_eligible_mask.max() == 0:
-        # if none of them accepted proposal, by terminating
         return rewards_batch
 
     exceeded_pool, _ = ((s.last_proposal - s.pool) > 0).max(1)
     if exceeded_pool.max() > 0:
         reward_eligible_mask[exceeded_pool.nonzero().long().view(-1)] = 0
         if reward_eligible_mask.max() == 0:
-            # all eligible ones exceeded pool
             return rewards_batch
 
     proposer = 1 - agent
     accepter = agent
-    proposal = torch.zeros(batch_size, 2, 3).long()
+    proposal = torch.zeros(batch_size, 2, 3, dtype=torch.long, device=device)
     proposal[:, proposer] = s.last_proposal
     proposal[:, accepter] = s.pool - s.last_proposal
     max_utility, _ = s.utilities.max(1)
@@ -43,18 +39,17 @@ def calc_rewards(t, s, term, device):
     for b in reward_eligible_idxes:
         raw_rewards = torch.zeros(2, dtype=torch.float, device=device)
         for i in range(2):
-            raw_rewards[i] = s.utilities[b, i].cpu().dot(proposal[b, i].cpu())
+            raw_rewards[i] = s.utilities[b, i].dot(proposal[b, i])
 
         scaled_rewards = torch.zeros(3, device=device, dtype=torch.float)
 
-        # we always calculate the prosocial reward
         actual_prosocial = raw_rewards.sum()
-        available_prosocial = max_utility[b].cpu().dot(s.pool[b].cpu())
+        available_prosocial = max_utility[b].dot(s.pool[b])
         if available_prosocial != 0:
             scaled_rewards[2] = actual_prosocial / available_prosocial
 
         for i in range(2):
-            max_agent = s.utilities[b, i].cpu().dot(s.pool[b].cpu())
+            max_agent = s.utilities[b, i].dot(s.pool[b])
             if max_agent != 0:
                 scaled_rewards[i] = raw_rewards[i] / max_agent
 

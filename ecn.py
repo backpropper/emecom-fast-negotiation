@@ -9,7 +9,6 @@ import random
 
 import torch
 from torch import optim, nn
-import torch.nn.functional as F
 
 import nets
 import sampling
@@ -24,7 +23,7 @@ def render_action(t, s, prop, term):
     print('  ', end='')
     if speaker == 'B':
         print('                                   ', end='')
-    if term[0][0]:
+    if term[0]:
         print(' ACC')
     else:
         print(' ' + ''.join([str(v) for v in s.m_prev[0].view(-1).tolist()]), end='')
@@ -83,20 +82,7 @@ class State(object):
         self.m_prev = self.m_prev[still_alive_idxes]
 
 
-def run_episode(
-        batch,
-        device,
-        enable_comms,
-        enable_proposal,
-        prosocial,
-        agent_models,
-        # batch_size,
-        testing,
-        render=False):
-    """
-    turning testing on means, we disable stochasticity: always pick the argmax
-    """
-
+def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_models, testing, render=False):
     batch_size = batch['N'].size()[0]
     s = State(**batch, device=device)
 
@@ -107,7 +93,8 @@ def run_episode(
     # next two tensofrs wont be sieved, they will stay same size throughout
     # entire batch, we will update them using sieve.out_idxes[...]
     rewards = torch.zeros((batch_size, 3), device=device, dtype=torch.float)
-    num_steps = torch.ones(batch_size, dtype=torch.long, device=device) * 10
+    num_steps = torch.ones(batch_size, device=device, dtype=torch.long) * 10
+
     term_matches_argmax_count = 0
     utt_matches_argmax_count = 0
     utt_stochastic_draws = 0
@@ -115,10 +102,7 @@ def run_episode(
     prop_matches_argmax_count = 0
     prop_stochastic_draws = 0
 
-    entropy_loss_by_agent = [
-                            torch.zeros(1, device=device, dtype=torch.float),
-                            torch.zeros(1, device=device, dtype=torch.float)
-                            ]
+    entropy_loss_by_agent = [0, 0]
     if render:
         print('  ')
     for t in range(10):
@@ -128,18 +112,14 @@ def run_episode(
         if enable_comms:
             _prev_message = s.m_prev
         else:
-            # we dont strictly need to blank them, since they'll be all zeros anyway,
-            # but defense in depth and all that :)
             _prev_message = torch.zeros((sieve.batch_size, 6), dtype=torch.long, device=device)
         if enable_proposal:
             _prev_proposal = s.last_proposal
         else:
-            # we do need to blank this one though :)
             _prev_proposal = torch.zeros((sieve.batch_size, 3), dtype=torch.long, device=device)
         nodes, term_a, s.m_prev, this_proposal, _entropy_loss, \
                 _term_matches_argmax_count, _utt_matches_argmax_count, _utt_stochastic_draws, \
-                _prop_matches_argmax_count, _prop_stochastic_draws = agent_model(
-                                                                                pool=s.pool,
+                _prop_matches_argmax_count, _prop_stochastic_draws = agent_model(pool=s.pool,
                                                                                 utility=s.utilities[:, agent],
                                                                                 m_prev=s.m_prev,
                                                                                 prev_proposal=_prev_proposal,
@@ -162,7 +142,7 @@ def run_episode(
         s.last_proposal = this_proposal
 
         sieve.mark_dead(term_a)
-        sieve.mark_dead(t + 1 >= s.N)
+        sieve.mark_dead(t + 1 == s.N)
         alive_masks.append(sieve.alive_mask.clone())
         sieve.set_dead_global(num_steps, t + 1)
         if sieve.all_dead():
@@ -172,7 +152,8 @@ def run_episode(
         sieve.self_sieve_()
 
     if render:
-        print('  r: %.2f' % rewards[0].mean())
+        # print('  r: %.2f' % rewards[0].mean())
+        print('  r: %.2f' % rewards[0][2])
         print('  ')
 
     return actions_by_timestep, rewards, num_steps, alive_masks, entropy_loss_by_agent, \
@@ -192,12 +173,6 @@ def safe_div(a, b):
 def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, batch_size,
         term_entropy_reg, utterance_entropy_reg, proposal_entropy_reg, device,
         no_load, testing, test_seed, render_every_seconds):
-    """
-    testing option will:
-    - use argmax, ie disable stochastic draws
-    - not run optimizers
-    - not save model
-    """
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
@@ -215,8 +190,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
     agent_models = []
     agent_opts = []
     for i in range(2):
-        model = nets.AgentModel(
-                            enable_comms=enable_comms,
+        model = nets.AgentModel(enable_comms=enable_comms,
                             enable_proposal=enable_proposal,
                             device=device,
                             term_entropy_reg=term_entropy_reg,
@@ -239,23 +213,22 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
         print('')
         return
 
-    last_print = time.time()
-    rewards_sum = torch.zeros(3, dtype=torch.float, device=device)
-    steps_sum = 0
-    count_sum = 0
-
     for d in ['logs', 'model_saves']:
         if not os.path.isdir(d):
             os.makedirs(d)
     f_log = open(logfile, 'w')
-    f_log.write('meta: %s\n' % json.dumps({
-        'enable_proposal': enable_proposal,
-        'enable_comms': enable_comms,
-        'prosocial': prosocial,
-        'seed': seed
-    }))
+    json_dict = {'enable_proposal': enable_proposal,
+                'enable_comms': enable_comms,
+                'prosocial': prosocial,
+                'seed': seed
+                }
+    f_log.write('meta: %s\n' % json.dumps(json_dict))
 
+    last_print = time.time()
     last_save = time.time()
+    steps_sum = 0
+    count_sum = 0
+    rewards_sum = torch.zeros(3, dtype=torch.float, device=device)
     baseline = torch.zeros(3, dtype=torch.float, device=device)
     term_matches_argmax_count = 0
     num_policy_runs = 0
@@ -263,22 +236,21 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
     utt_stochastic_draws = 0
     prop_matches_argmax_count = 0
     prop_stochastic_draws = 0
+
     while True:
         render = time.time() - last_print >= render_every_seconds
-        # render = True
         batch = sampling.generate_training_batch(batch_size=batch_size, test_hashes=test_hashes, random_state=train_r)
         actions, rewards, steps, alive_masks, entropy_loss_by_agent, \
                 _term_matches_argmax_count, _num_policy_runs, _utt_matches_argmax_count, _utt_stochastic_draws, \
-                _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(
-                                                                                batch=batch,
+                _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(batch=batch,
                                                                                 device=device,
                                                                                 enable_comms=enable_comms,
                                                                                 enable_proposal=enable_proposal,
                                                                                 agent_models=agent_models,
                                                                                 prosocial=prosocial,
-                                                                                # batch_size=batch_size,
                                                                                 render=render,
-                                                                                testing=testing)
+                                                                                testing=testing
+                                                                                )
         term_matches_argmax_count += float(_term_matches_argmax_count)
         utt_matches_argmax_count += float(_utt_matches_argmax_count)
         utt_stochastic_draws += float(_utt_stochastic_draws)
@@ -318,15 +290,11 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
         count_sum += batch_size
 
         if render:
-            """
-            run the test batches, print the results
-            """
             test_rewards_sum = 0
             for test_batch in test_batches:
                 actions, test_rewards, steps, alive_masks, entropy_loss_by_agent, \
                         _term_matches_argmax_count, _num_policy_runs, _utt_matches_argmax_count, _utt_stochastic_draws, \
-                        _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(
-                                                                                        batch=test_batch,
+                        _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(batch=test_batch,
                                                                                         device=device,
                                                                                         enable_comms=enable_comms,
                                                                                         enable_proposal=enable_proposal,
@@ -345,11 +313,11 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
             time_since_last = time.time() - last_print
             if prosocial:
                 baseline_str = '%.2f' % baseline[2]
-                # rewards_str = '%.2f' % (rewards_sum[2] / count_sum)
+                rewards_str = '%.2f' % (rewards_sum_pr[2] / count_sum)
             else:
                 baseline_str = '%.2f,%.2f' % (baseline_pr[0], baseline_pr[1])
-            rewards_str = '%.2f,%.2f,%.2f' % (rewards_sum_pr[0] / count_sum, rewards_sum_pr[1] / count_sum, rewards_sum_pr[2] / count_sum)
-            print('e=%s train=%s b=%s games/sec %s avg steps %.4f argmaxp term=%.4f utt=%.4f prop=%.4f' % (
+                rewards_str = '%.2f,%.2f' % (rewards_sum_pr[0] / count_sum, rewards_sum_pr[1] / count_sum)
+            print('e=%s train=%s b=%s games/sec %s avg_steps %.4f argmaxp term=%.4f utt=%.4f prop=%.4f' % (
                 episode,
                 rewards_str,
                 baseline_str,
@@ -359,6 +327,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                 safe_div(utt_matches_argmax_count, utt_stochastic_draws),
                 prop_matches_argmax_count / prop_stochastic_draws
             ))
+
             f_log.write(json.dumps({
                 'episode': episode,
                 'avg_reward_0': rewards_sum_pr[2] / count_sum,
@@ -371,8 +340,10 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                 'argmaxp_prop': (prop_matches_argmax_count / prop_stochastic_draws)
             }) + '\n')
             f_log.flush()
+
             last_print = time.time()
             steps_sum = 0
+            count_sum = 0
             rewards_sum = torch.zeros(3, dtype=torch.float, device=device)
             term_matches_argmax_count = 0
             num_policy_runs = 0
@@ -380,7 +351,6 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
             utt_stochastic_draws = 0
             prop_matches_argmax_count = 0
             prop_stochastic_draws = 0
-            count_sum = 0
 
         if not testing and time.time() - last_save >= 30.0:
             save_model(
@@ -403,9 +373,9 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--test-seed', type=int, default=123, help='used for generating test game set')
     parser.add_argument('--seed', type=int, help='optional')
-    parser.add_argument('--term-entropy-reg', type=float, default=0.05)
-    parser.add_argument('--utterance-entropy-reg', type=float, default=0.001)
-    parser.add_argument('--proposal-entropy-reg', type=float, default=0.05)
+    parser.add_argument('--term-entropy-reg', type=float, default=0.5)
+    parser.add_argument('--utterance-entropy-reg', type=float, default=0.0001)
+    parser.add_argument('--proposal-entropy-reg', type=float, default=0.01)
     parser.add_argument('--disable-proposal', action='store_true')
     parser.add_argument('--disable-comms', action='store_true')
     parser.add_argument('--disable-prosocial', action='store_true')
