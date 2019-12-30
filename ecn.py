@@ -23,7 +23,7 @@ def render_action(t, s, prop, term):
     print('  ', end='')
     if speaker == 'B':
         print('                                   ', end='')
-    if term.squeeze()[0]:
+    if term[0][0]:
         print(' ACC')
     else:
         print(' ' + ''.join([str(v) for v in s.m_prev[0].view(-1).tolist()]), end='')
@@ -150,7 +150,6 @@ def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_m
         sieve.self_sieve_()
 
     if render:
-        # print('  r: %.2f' % rewards[0].mean())
         print('  r: %.2f' % rewards[0][2])
         print('  ')
 
