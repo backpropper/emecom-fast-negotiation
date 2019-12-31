@@ -29,7 +29,7 @@ def plot_reward(logfile, min_y, max_y, title, max_x):
                     if max_x is not None and d['episode'] > max_x:
                         continue
                     epoch.append(int(d['episode']))
-                    reward.append(float(d['avg_reward_pro']))
+                    reward.append(float(d['avg_reward_0']))
                     if 'test_reward' in d:
                         test_reward.append(d['test_reward'])
         print('epoch[0]', epoch[0], 'epochs[-1]', epoch[-1])

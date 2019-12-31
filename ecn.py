@@ -374,13 +374,12 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model-file', type=str, default='model_saves/model.pt')
     parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--test-seed', type=int, default=123, help='used for generating test game set')
     parser.add_argument('--seed', type=int, default=111)
-    parser.add_argument('--term-entropy-reg', type=float, default=0.5)
-    parser.add_argument('--utterance-entropy-reg', type=float, default=0.0001)
-    parser.add_argument('--proposal-entropy-reg', type=float, default=0.01)
+    parser.add_argument('--term-entropy-reg', type=float, default=0.05)
+    parser.add_argument('--utterance-entropy-reg', type=float, default=0.001)
+    parser.add_argument('--proposal-entropy-reg', type=float, default=0.05)
     parser.add_argument('--disable-proposal', action='store_true')
     parser.add_argument('--disable-comms', action='store_true')
     parser.add_argument('--disable-prosocial', action='store_true')
@@ -388,6 +387,7 @@ if __name__ == '__main__':
     parser.add_argument('--testing', action='store_true', help='turn off learning; always pick argmax')
     parser.add_argument('--no-load', action='store_true')
     parser.add_argument('--name', type=str, default='', help='used for logfile naming')
+    parser.add_argument('--model-file', type=str, default='model_saves/model_{name}.pt')
     parser.add_argument('--logfile', type=str, default='logs/log_%Y%m%d_%H%M%S{name}.log')
     args = parser.parse_args()
 
