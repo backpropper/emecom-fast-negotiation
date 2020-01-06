@@ -93,7 +93,7 @@ class UtterancePolicy(nn.Module):
             h, c = self.lstm(embedded, (h, c))
             logits = self.h1(h)
             if corrupt:
-                logits += torch.randn(logits.shape).detach()
+                logits += torch.randn(logits.shape, device=self.device).detach()
 
             probs = F.softmax(logits, -1)
 
