@@ -170,7 +170,7 @@ def safe_div(a, b):
 
 def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, batch_size,
         term_entropy_reg, utterance_entropy_reg, proposal_entropy_reg, device,
-        no_load, testing, test_seed, render_every_seconds):
+        no_load, testing, test_seed, render_every_seconds, corr_utt_perc):
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
@@ -239,7 +239,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
         render = time.time() - last_print >= render_every_seconds
         batch = sampling.generate_training_batch(batch_size=batch_size, test_hashes=test_hashes, random_state=train_r)
         p = random.uniform(0, 1)
-        if p >= 0.5:
+        if p >= corr_utt_perc:
             corrupt_utt = True
         else:
             corrupt_utt = False
@@ -384,6 +384,8 @@ if __name__ == '__main__':
     parser.add_argument('--disable-comms', action='store_true')
     parser.add_argument('--disable-prosocial', action='store_true')
     parser.add_argument('--render-every-seconds', type=int, default=30)
+    parser.add_argument('--corr-utt-perc', type=int, default=0.5)
+    parser.add_argument('--corr-prop-perc', type=int, default=0.5)
     parser.add_argument('--testing', action='store_true', help='turn off learning; always pick argmax')
     parser.add_argument('--no-load', action='store_true')
     parser.add_argument('--name', type=str, default='', help='used for logfile naming')
