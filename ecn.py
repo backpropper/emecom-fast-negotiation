@@ -170,7 +170,7 @@ def safe_div(a, b):
 
 def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, batch_size,
         term_entropy_reg, utterance_entropy_reg, proposal_entropy_reg, device,
-        no_load, testing, test_seed, render_every_seconds, corr_utt_perc):
+        no_load, testing, test_seed, render_every_seconds, corr_utt_perc, corr_prop_perc):
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
