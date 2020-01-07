@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 
 
-def plot_reward(logfile, min_y, max_y, title, max_x):
+def plot_reward(logfile, min_y, max_y, title, max_x, save_name, labels=None):
     """
     logfiles separated by : are combined
     logfiles separated by , go in separate plots
@@ -12,6 +12,8 @@ def plot_reward(logfile, min_y, max_y, title, max_x):
     """
     logfiles = logfile
     split_logfiles = logfiles.split(',')
+    if labels is not None:
+        split_labels = labels.split(',')
     for j, logfile_groups in enumerate(split_logfiles):
         epoch = []
         reward = []
@@ -29,7 +31,7 @@ def plot_reward(logfile, min_y, max_y, title, max_x):
                     if max_x is not None and d['episode'] > max_x:
                         continue
                     epoch.append(int(d['episode']))
-                    reward.append(float(d['avg_reward_0']))
+                    reward.append(float(d['avg_reward_pro']))
                     if 'test_reward' in d:
                         test_reward.append(d['test_reward'])
         print('epoch[0]', epoch[0], 'epochs[-1]', epoch[-1])
@@ -55,18 +57,19 @@ def plot_reward(logfile, min_y, max_y, title, max_x):
             plt.ylim([min_y, max_y])
         suffix = ''
         if len(split_logfiles) > 1:
-            suffix = ' %s' % (j + 1)
+            # suffix = ' %s' % (j + 1)
+            suffix = split_labels[j]
         if len(test_reward) > 0:
-            plt.plot(np.array(epoch) / 1000, reward, label='train' + suffix)
-            plt.plot(np.array(epoch) / 1000, test_reward, label='test' + suffix)
+            plt.plot(np.array(epoch) / 1000, reward, label='train ' + suffix)
+            plt.plot(np.array(epoch) / 1000, test_reward, label='test ' + suffix)
         else:
-            plt.plot(np.array(epoch) / 1000, reward, label='reward' + suffix)
+            plt.plot(np.array(epoch) / 1000, reward, label='reward ' + suffix)
     if title is not None:
         plt.title(title)
     plt.xlabel('Episodes of 128 games (thousands)')
     plt.ylabel('Reward')
     plt.legend()
-    plt.savefig('test_plots/out-reward.png')
+    plt.savefig(f'test_plots/{save_name}.png')
 
 
 if __name__ == '__main__':
@@ -76,6 +79,8 @@ if __name__ == '__main__':
     parser.add_argument('--min-y', type=float)
     parser.add_argument('--max-y', type=float)
     parser.add_argument('--title', type=str)
+    parser.add_argument('--save-name', type=str, default='test')
+    parser.add_argument('--labels', type=str, default='1,2')
 
     args = parser.parse_args()
     args_dict = args.__dict__
