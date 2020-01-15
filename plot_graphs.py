@@ -69,7 +69,7 @@ def plot_reward(logfile, min_y, max_y, title, max_x, save_name, labels=None):
     plt.xlabel('Episodes of 128 games (thousands)')
     plt.ylabel('Reward')
     plt.legend()
-    plt.savefig(f'test_plots/{save_name}.png')
+    plt.savefig(f'test_plots/{save_name}.pdf')
 
 
 if __name__ == '__main__':

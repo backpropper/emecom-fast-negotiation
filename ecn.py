@@ -51,8 +51,9 @@ def save_model(model_file, agent_models, agent_opts, start_time, episode):
 
 
 def load_model(model_file, agent_models, agent_opts):
+    device = torch.device('cpu')
     with open(model_file, 'rb') as f:
-        state = torch.load(f)
+        state = torch.load(f, map_location=device)
     for i in range(2):
         agent_models[i].load_state_dict(state['agent%s' % i]['model_state'])
         agent_opts[i].load_state_dict(state['agent%s' % i]['opt_state'])
@@ -82,7 +83,7 @@ class State(object):
         self.m_prev = self.m_prev[still_alive_idxes]
 
 
-def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_models, testing, corrupt_utt, render=False):
+def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_models, testing, corr_pct, render=False):
     batch_size = batch['N'].size()[0]
     s = State(**batch, device=device)
 
@@ -122,7 +123,7 @@ def run_episode(batch, device, enable_comms, enable_proposal, prosocial, agent_m
                                                                                 m_prev=s.m_prev,
                                                                                 prev_proposal=_prev_proposal,
                                                                                 testing=testing,
-                                                                                corrupt_utt=corrupt_utt
+                                                                                corr_pct=corr_pct
                                                                                 )
         entropy_loss_by_agent[agent] += _entropy_loss
         actions_by_timestep.append(nodes)
@@ -168,8 +169,8 @@ def safe_div(a, b):
     return 0 if b == 0 else a / b
 
 
-def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, batch_size,
-        term_entropy_reg, utterance_entropy_reg, proposal_entropy_reg, device,
+def run(enable_proposal, enable_comms, seed, prosocial, log_file, model_file, batch_size,
+        term_entropy_reg, utterance_entropy_reg, proposal_entropy_reg, device, save_model,
         no_load, testing, test_seed, render_every_seconds, corr_utt_perc, corr_prop_perc):
     if seed is not None:
         random.seed(seed)
@@ -199,6 +200,8 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
         agent_models.append(model)
         agent_opts.append(optim.Adam(params=agent_models[i].parameters()))
 
+
+    model_file_path = os.path.join(model_file, 'model.pt')
     if os.path.isfile(model_file) and not no_load:
         episode, start_time = load_model(
             model_file=model_file,
@@ -211,14 +214,16 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
         print('')
         return
 
+    log_file_path = os.path.join(log_file, 'logs.log')
     for d in ['logs', 'model_saves']:
         if not os.path.isdir(d):
             os.makedirs(d)
-    f_log = open(logfile, 'w')
+    f_log = open(log_file_path, 'w')
     json_dict = {'enable_proposal': enable_proposal,
                 'enable_comms': enable_comms,
                 'prosocial': prosocial,
-                'seed': seed
+                'seed': seed,
+                'corr_utt_perc': corr_utt_perc
                 }
     f_log.write('meta: %s\n' % json.dumps(json_dict))
 
@@ -238,11 +243,6 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
     while True:
         render = time.time() - last_print >= render_every_seconds
         batch = sampling.generate_training_batch(batch_size=batch_size, test_hashes=test_hashes, random_state=train_r)
-        p = random.uniform(0, 1)
-        if p >= corr_utt_perc:
-            corrupt_utt = True
-        else:
-            corrupt_utt = False
         actions, rewards, steps, alive_masks, entropy_loss_by_agent, \
                 _term_matches_argmax_count, _num_policy_runs, _utt_matches_argmax_count, _utt_stochastic_draws, \
                 _prop_matches_argmax_count, _prop_stochastic_draws = run_episode(batch=batch,
@@ -253,7 +253,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                                                                                 prosocial=prosocial,
                                                                                 render=render,
                                                                                 testing=testing,
-                                                                                corrupt_utt=corrupt_utt
+                                                                                corr_pct=corr_utt_perc
                                                                                 )
         term_matches_argmax_count += float(_term_matches_argmax_count)
         utt_matches_argmax_count += float(_utt_matches_argmax_count)
@@ -306,7 +306,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
                                                                                         prosocial=prosocial,
                                                                                         render=True,
                                                                                         testing=True,
-                                                                                        corrupt_utt=False
+                                                                                        corr_pct=corr_utt_perc
                                                                                         )
                 test_rewards_sum += test_rewards[:, 2].mean()
 
@@ -357,7 +357,10 @@ def run(enable_proposal, enable_comms, seed, prosocial, logfile, model_file, bat
             prop_matches_argmax_count = 0
             prop_stochastic_draws = 0
 
-        if not testing and time.time() - last_save >= render_every_seconds:
+            if testing:
+                break
+
+        if not testing and save_model and time.time() - last_save >= render_every_seconds:
             save_model(
                 model_file=model_file,
                 agent_models=agent_models,
@@ -382,23 +385,23 @@ if __name__ == '__main__':
     parser.add_argument('--proposal-entropy-reg', type=float, default=0.05)
     parser.add_argument('--disable-proposal', action='store_true')
     parser.add_argument('--disable-comms', action='store_true')
+    parser.add_argument('--save-model', action='store_true')
     parser.add_argument('--disable-prosocial', action='store_true')
     parser.add_argument('--render-every-seconds', type=int, default=30)
     parser.add_argument('--corr-utt-perc', type=float, default=0.5)
     parser.add_argument('--corr-prop-perc', type=float, default=0.5)
     parser.add_argument('--testing', action='store_true', help='turn off learning; always pick argmax')
     parser.add_argument('--no-load', action='store_true')
-    parser.add_argument('--name', type=str, default='', help='used for logfile naming')
-    parser.add_argument('--model-file', type=str, default='model_saves/model_{name}.pt')
-    parser.add_argument('--logfile', type=str, default='logs/log_%Y%m%d_%H%M%S{name}.log')
+    parser.add_argument('--model-file', type=str, default='models_local/')
+    parser.add_argument('--log-file', type=str, default='logs_local/')
     args = parser.parse_args()
 
     args.enable_comms = not args.disable_comms
     args.enable_proposal = not args.disable_proposal
     args.prosocial = not args.disable_prosocial
-    args.logfile = args.logfile.format(**args.__dict__)
-    args.logfile = datetime.datetime.strftime(datetime.datetime.now(), args.logfile)
-    args.model_file = args.model_file.format(**args.__dict__)
+    # args.log_file = args.log_file.format(**args.__dict__)
+    # args.log_file = datetime.datetime.strftime(datetime.datetime.now(), args.log_file)
+    # args.model_file = args.model_file.format(**args.__dict__)
     args.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     del args.__dict__['disable_comms']

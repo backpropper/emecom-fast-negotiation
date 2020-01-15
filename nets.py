@@ -75,7 +75,7 @@ class UtterancePolicy(nn.Module):
         self.h1 = nn.Linear(embedding_size, num_tokens)
         self.device = device
 
-    def forward(self, h_t, testing, corrupt=False, eps=1e-8):
+    def forward(self, h_t, testing, corr_pct=0, eps=1e-8):
         batch_size = h_t.size()[0]
 
         h = h_t
@@ -92,8 +92,8 @@ class UtterancePolicy(nn.Module):
             embedded = self.embedding(last_token)
             h, c = self.lstm(embedded, (h, c))
             logits = self.h1(h)
-            if corrupt:
-                logits += torch.randn(logits.shape, device=self.device).detach()
+
+            logits = (1 - corr_pct) * logits + corr_pct * torch.randn(logits.shape, device=self.device).detach()
 
             probs = F.softmax(logits, -1)
 
@@ -195,7 +195,7 @@ class AgentModel(nn.Module):
         self.utterance_policy = UtterancePolicy(device)
         self.proposal_policy = ProposalPolicy(device)
 
-    def forward(self, pool, utility, m_prev, prev_proposal, testing, corrupt_utt):
+    def forward(self, pool, utility, m_prev, prev_proposal, testing, corr_pct):
         batch_size = pool.size()[0]
         context = torch.cat([pool, utility], 1)
         c_h = self.context_net(context)
@@ -217,7 +217,8 @@ class AgentModel(nn.Module):
 
         if self.enable_comms:
             utterance_nodes, utterance, utterance_entropy, utt_matches_argmax_count, \
-                                                utt_stochastic_draws = self.utterance_policy(h_t, testing=testing, corrupt=corrupt_utt)
+                                                utt_stochastic_draws = self.utterance_policy(h_t, testing=testing,
+                                                                                            corr_pct=corr_pct)
             nodes += utterance_nodes
             entropy_loss -= self.utterance_entropy_reg * utterance_entropy
         else:
