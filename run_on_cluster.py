@@ -2,7 +2,7 @@ import os
 import sys
 import time
 
-code_directory = '/home/guptaabh/scratch/emecom-fast-negotiation'
+code_directory = '/home/abhinav/emecom-fast-negotiation'
 directory = code_directory
 
 slurm_logs = os.path.join(directory, "slurm_logs")
@@ -62,6 +62,6 @@ for rs in [100, 105, 110, 115, 120]:
     for corr in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]:
         job['seed'] = rs
         job['corr_utt_perc'] = corr
-        job['save_str'] = f"seed{job['seed']}_corr{str(job['corr'])[-1]}"
+        job['save_str'] = f"seed{job['seed']}_corr{str(job['corr_utt_perc'])[-1]}"
         _run_exp(job)
 
