@@ -56,12 +56,18 @@ def _run_exp(batch, file_name='ecn.py', job_time="72:00:00"):
     os.system(s)
     time.sleep(1)
 
-
+# corrupted channel
 job = {'no-load': True, 'save_data': True, 'render-every-seconds': 300, 'save-model-flag': True}
 for rs in [100, 105, 110, 115, 120, 125, 130]:
     for corr in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]:
         job['seed'] = rs
         job['corr-utt-perc'] = corr
         job['save_str'] = f"seed{job['seed']}_corr{str(job['corr-utt-perc'])[-1]}"
-        _run_exp(job)
+        # _run_exp(job)
 
+# disable comm channel
+job = {'no-load': True, 'save_data': True, 'render-every-seconds': 300, 'save-model-flag': True, 'disable-comms': True}
+for rs in [100, 105, 110, 115, 120, 125, 130]:
+    job['seed'] = rs
+    job['save_str'] = f"seed{job['seed']}_nocomm"
+    _run_exp(job)
