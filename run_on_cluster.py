@@ -32,7 +32,7 @@ def _run_exp(batch, file_name='ecn.py', job_time="72:00:00"):
 
     jobcommand = f'python {file_name}'
     for key, value in batch.items():
-        if key in ['save_data', 'save_str']:
+        if key in ['save_str']:
             continue
         elif type(value) == bool:
             if value:
@@ -57,11 +57,11 @@ def _run_exp(batch, file_name='ecn.py', job_time="72:00:00"):
     time.sleep(1)
 
 
-job = {'no_load': True, 'render_every_seconds': 300, 'save_model': True}
-for rs in [100, 105, 110, 115, 120]:
+job = {'no-load': True, 'save_data': True, 'render-every-seconds': 300, 'save-model': True}
+for rs in [100, 105, 110, 115, 120, 125, 130]:
     for corr in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]:
         job['seed'] = rs
-        job['corr_utt_perc'] = corr
-        job['save_str'] = f"seed{job['seed']}_corr{str(job['corr_utt_perc'])[-1]}"
+        job['corr-utt-perc'] = corr
+        job['save_str'] = f"seed{job['seed']}_corr{str(job['corr-utt-perc'])[-1]}"
         _run_exp(job)
 
