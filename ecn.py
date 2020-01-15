@@ -45,9 +45,8 @@ def save_model(model_file, agent_models, agent_opts, start_time, episode):
         state['agent%s' % i]['opt_state'] = agent_opts[i].state_dict()
     state['episode'] = episode
     state['elapsed_time'] = time.time() - start_time
-    with open(model_file + '.tmp', 'wb') as f:
+    with open(model_file, 'wb') as f:
         torch.save(state, f)
-    os.rename(model_file + '.tmp', model_file)
 
 
 def load_model(model_file, agent_models, agent_opts):
@@ -170,7 +169,7 @@ def safe_div(a, b):
 
 
 def run(enable_proposal, enable_comms, seed, prosocial, log_file, model_file, batch_size,
-        term_entropy_reg, utterance_entropy_reg, proposal_entropy_reg, device, save_model,
+        term_entropy_reg, utterance_entropy_reg, proposal_entropy_reg, device, save_model_flag,
         no_load, testing, test_seed, render_every_seconds, corr_utt_perc, corr_prop_perc):
     if seed is not None:
         random.seed(seed)
@@ -215,7 +214,7 @@ def run(enable_proposal, enable_comms, seed, prosocial, log_file, model_file, ba
         return
 
     log_file_path = os.path.join(log_file, 'logs.log')
-    for d in ['logs', 'model_saves']:
+    for d in [log_file, model_file]:
         if not os.path.isdir(d):
             os.makedirs(d)
     f_log = open(log_file_path, 'w')
@@ -360,9 +359,9 @@ def run(enable_proposal, enable_comms, seed, prosocial, log_file, model_file, ba
             if testing:
                 break
 
-        if not testing and save_model and time.time() - last_save >= render_every_seconds:
+        if not testing and save_model_flag and time.time() - last_save >= render_every_seconds:
             save_model(
-                model_file=model_file,
+                model_file=model_file_path,
                 agent_models=agent_models,
                 agent_opts=agent_opts,
                 start_time=start_time,
@@ -385,15 +384,16 @@ if __name__ == '__main__':
     parser.add_argument('--proposal-entropy-reg', type=float, default=0.05)
     parser.add_argument('--disable-proposal', action='store_true')
     parser.add_argument('--disable-comms', action='store_true')
-    parser.add_argument('--save-model', action='store_true')
+    parser.add_argument('--save-model-flag', action='store_true')
     parser.add_argument('--disable-prosocial', action='store_true')
     parser.add_argument('--render-every-seconds', type=int, default=30)
     parser.add_argument('--corr-utt-perc', type=float, default=0.5)
     parser.add_argument('--corr-prop-perc', type=float, default=0.5)
     parser.add_argument('--testing', action='store_true', help='turn off learning; always pick argmax')
     parser.add_argument('--no-load', action='store_true')
-    parser.add_argument('--model-file', type=str, default='models_local/')
-    parser.add_argument('--log-file', type=str, default='logs_local/')
+    parser.add_argument('--name', type=str, default='', help='used for logfile naming')
+    parser.add_argument('--model-file', type=str, default='models_local/model_{name}')
+    parser.add_argument('--log-file', type=str, default='logs_local/log_{name}')
     args = parser.parse_args()
 
     args.enable_comms = not args.disable_comms
