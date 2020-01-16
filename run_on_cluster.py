@@ -47,7 +47,6 @@ def _run_exp(batch, file_name='ecn.py', job_time="72:00:00"):
         f.write(f"#SBATCH --job-name={save_str}\n")
         f.write(f'#SBATCH --output={os.path.join(slurm_logs, save_str + ".out")}\n')
         # f.write(f'#SBATCH --error={os.path.join(slurm_logs, save_str + ".err")}\n')
-        f.write("module load cuda cudnn\n")
         f.write(f"cd {code_directory}\n")
         f.write(jobcommand + "\n")
 
