@@ -50,7 +50,7 @@ def _run_exp(batch, file_name='ecn.py', job_time="72:00:00"):
         f.write(f"cd {code_directory}\n")
         f.write(jobcommand + "\n")
 
-    s = f"sbatch --gres=gpu:1 --mem=20G -c4 --time={job_time} "
+    s = f"sbatch --gres=gpu:1 --mem=8G -c4 --time={job_time} "
     s += f'{slurmfile} &'
     os.system(s)
     time.sleep(1)
