@@ -23,16 +23,16 @@ if not os.path.exists(log_dir):
 def _run_exp(batch, file_name='ecn.py', job_time="72:00:00"):
     save_str = batch['save_str']
     if batch['save_data']:
-        batch['model_file'] = os.path.join(model_dir, save_str)
-        batch['log_file'] = os.path.join(log_dir, save_str)
-        if not os.path.exists(batch['model_file']):
-            os.makedirs(batch['model_file'])
-        if not os.path.exists(batch['log_file']):
-            os.makedirs(batch['log_file'])
+        batch['model-file'] = os.path.join(model_dir, save_str)
+        batch['log-file'] = os.path.join(log_dir, save_str)
+        if not os.path.exists(batch['model-file']):
+            os.makedirs(batch['model-file'])
+        if not os.path.exists(batch['log-file']):
+            os.makedirs(batch['log-file'])
 
     jobcommand = f'python {file_name}'
     for key, value in batch.items():
-        if key in ['save_str']:
+        if key in ['save_data', 'save_str']:
             continue
         elif type(value) == bool:
             if value:
