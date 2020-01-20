@@ -93,7 +93,14 @@ class UtterancePolicy(nn.Module):
             h, c = self.lstm(embedded, (h, c))
             logits = self.h1(h)
 
-            logits = (1 - corr_pct) * logits + corr_pct * torch.randn(logits.shape, device=self.device).detach()
+            raw_noise = torch.randn(logits.shape, device=self.device).detach()
+            noise_min = torch.min(raw_noise, keepdim=True, dim=1)[0]
+            noise_max = torch.max(raw_noise, keepdim=True, dim=1)[0]
+
+            min_val = torch.min(logits, keepdim=True, dim=1)[0]
+            max_val = torch.max(logits, keepdim=True, dim=1)[0]
+            noise = min_val + (max_val - min_val) * (raw_noise - noise_min) / (noise_max - noise_min)
+            logits = (1 - corr_pct) * logits + corr_pct * noise
 
             probs = F.softmax(logits, -1)
 

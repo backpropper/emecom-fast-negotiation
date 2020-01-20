@@ -20,7 +20,7 @@ if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
 
-def _run_exp(batch, file_name='ecn.py', job_time="72:00:00"):
+def _run_exp(batch, file_name='ecn.py', job_time="24:00:00"):
     save_str = batch['save_str']
     if batch['save_data']:
         batch['model-file'] = os.path.join(model_dir, save_str)
@@ -69,4 +69,12 @@ job = {'no-load': True, 'save_data': True, 'render-every-seconds': 300, 'save-mo
 for rs in [100, 105, 110, 115, 120, 125, 130]:
     job['seed'] = rs
     job['save_str'] = f"seed{job['seed']}_nocomm"
-    _run_exp(job)
+    # _run_exp(job)
+
+job = {'no-load': True, 'save_data': True, 'render-every-seconds': 300, 'save-model-flag': True}
+for rs in [100, 105, 110]:
+    for corr in [0, 0.1, 0.3, 0.5, 0.7, 0.9, 1]:
+        job['seed'] = rs
+        job['corr-utt-perc'] = corr
+        job['save_str'] = f"norm_seed{job['seed']}_corr{str(job['corr-utt-perc'])[-1]}"
+        _run_exp(job)
