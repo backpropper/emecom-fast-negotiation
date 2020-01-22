@@ -77,4 +77,22 @@ for rs in [100, 105, 110]:
         job['seed'] = rs
         job['corr-utt-perc'] = corr
         job['save_str'] = f"norm_seed{job['seed']}_corr{str(job['corr-utt-perc'])[-1]}"
-        _run_exp(job)
+        # _run_exp(job)
+
+# reruns
+job = {'no-load': True, 'save_data': True, 'render-every-seconds': 300, 'save-model-flag': True,
+       'term-entropy-reg': 0.5, 'utterance-entropy-reg': 0.0001, 'proposal-entropy-reg': 0.01}
+for rs in [100, 105, 110]:
+    for corr in [0, 1]:
+        job['seed'] = rs
+        job['corr-utt-perc'] = corr
+        job['save_str'] = f"newreg_norm_seed{job['seed']}_corr{str(job['corr-utt-perc'])[-1]}"
+        # _run_exp(job)
+
+# disable comm channel
+job = {'no-load': True, 'save_data': True, 'render-every-seconds': 300, 'save-model-flag': True, 'disable-comms': True,
+       'term-entropy-reg': 0.5, 'utterance-entropy-reg': 0.0001, 'proposal-entropy-reg': 0.01}
+for rs in [100, 105, 110]:
+    job['seed'] = rs
+    job['save_str'] = f"newreg_seed{job['seed']}_nocomm"
+    # _run_exp(job)
